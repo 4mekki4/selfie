@@ -384,15 +384,14 @@ uint64_t SYM_LT           = 24; // <
 uint64_t SYM_LEQ          = 25; // <=
 uint64_t SYM_GT           = 26; // >
 uint64_t SYM_GEQ          = 27; // >=
-
-uint64_t SYM_SLL      = 31; // <<
-uint64_t SYM_SRL      = 32; // >>
+uint64_t SYM_SLL           = 28; // <<
+uint64_t SYM_SRL          = 29; // >>
 
 // symbols for bootstrapping
 
-uint64_t SYM_INT      = 28; // int
-uint64_t SYM_CHAR     = 29; // char
-uint64_t SYM_UNSIGNED = 30; // unsigned
+uint64_t SYM_INT      = 30; // int
+uint64_t SYM_CHAR     = 31; // char
+uint64_t SYM_UNSIGNED = 32; // unsigned
 
 uint64_t* SYMBOLS; // strings representing symbols
 
@@ -458,6 +457,8 @@ void init_scanner () {
   *(SYMBOLS + SYM_LEQ)          = (uint64_t) "<=";
   *(SYMBOLS + SYM_GT)           = (uint64_t) ">";
   *(SYMBOLS + SYM_GEQ)          = (uint64_t) ">=";
+  *(SYMBOLS + SYM_SLL)          = (uint64_t) "<<";
+  *(SYMBOLS + SYM_SRL)          = (uint64_t) ">>";
 
   *(SYMBOLS + SYM_INT)      = (uint64_t) "int";
   *(SYMBOLS + SYM_CHAR)     = (uint64_t) "char";
@@ -593,8 +594,6 @@ uint64_t is_star_or_div_or_modulo();
 uint64_t is_plus_or_minus();
 uint64_t is_comparison();
 
-uint64_t is_sll_or_srl();
-
 uint64_t look_for_factor();
 uint64_t look_for_statement();
 uint64_t look_for_type();
@@ -621,7 +620,7 @@ uint64_t compile_call(char* procedure);
 uint64_t compile_factor();
 uint64_t compile_term();
 uint64_t compile_simple_expression();
-uint64_t compile_bitWiseShift_expression();
+uint64_t compile_bitwiseshift_expression();
 uint64_t compile_expression();
 void     compile_while();
 void     compile_if();
@@ -823,8 +822,6 @@ uint64_t F3_NOP   = 0; // 000
 uint64_t F3_ADDI  = 0; // 000
 uint64_t F3_ADD   = 0; // 000
 uint64_t F3_SUB   = 0; // 000
-uint64_t F3_SLL   = 1; // 000
-uint64_t F3_SRL   = 5; // 000
 uint64_t F3_MUL   = 0; // 000
 uint64_t F3_DIVU  = 5; // 101
 uint64_t F3_REMU  = 7; // 111
@@ -834,16 +831,19 @@ uint64_t F3_SD    = 3; // 011
 uint64_t F3_BEQ   = 0; // 000
 uint64_t F3_JALR  = 0; // 000
 uint64_t F3_ECALL = 0; // 000
+uint64_t F3_SLL = 1;  // 0000001
+uint64_t F3_SRL = 5;  // 0000000
 
 // f7-codes
 uint64_t F7_ADD  = 0;  // 0000000
 uint64_t F7_MUL  = 1;  // 0000001
 uint64_t F7_SUB  = 32; // 0100000
-uint64_t F7_SRL  = 0; // 0100000
-uint64_t F7_SLL  = 0; // 0100000
 uint64_t F7_DIVU = 1;  // 0000001
 uint64_t F7_REMU = 1;  // 0000001
 uint64_t F7_SLTU = 0;  // 0000000
+uint64_t F7_SLL = 0;  // 0000001
+uint64_t F7_SRL = 0;  // 0000000
+
 
 // f12-codes (immediates)
 uint64_t F12_ECALL = 0; // 000000000000
@@ -890,6 +890,7 @@ void emit_remu(uint64_t rd, uint64_t rs1, uint64_t rs2);
 void emit_sltu(uint64_t rd, uint64_t rs1, uint64_t rs2);
 void emit_srl(uint64_t rd, uint64_t rs1, uint64_t rs2);
 void emit_sll(uint64_t rd, uint64_t rs1, uint64_t rs2);
+
 void emit_ld(uint64_t rd, uint64_t rs1, uint64_t immediate);
 void emit_sd(uint64_t rs1, uint64_t immediate, uint64_t rs2);
 
@@ -1855,9 +1856,9 @@ char* store_character(char* s, uint64_t i, uint64_t c) {
 }
 
 char* string_alloc(uint64_t l) {
-// allocates zeroed memory for a string of l characters
+  // allocates zeroed memory for a string of l characters
   // plus a null terminator aligned to machine word size
-return (char*) zalloc(l + 1);
+  return (char*) zalloc(l + 1);
 }
 
 uint64_t string_length(char* s) {
@@ -2897,33 +2898,32 @@ void get_symbol() {
 
       } else if (character == CHAR_LT) {
         get_character();
+        if(character == CHAR_LT)
+        {
+          get_character();
+          symbol = SYM_SLL;
 
-        if (character == CHAR_EQUAL) {
+        }
+        else if (character == CHAR_EQUAL) {
           get_character();
 
           symbol = SYM_LEQ;
-        }  else  if (character == CHAR_LT) {
-          get_character();
-
-          symbol = SYM_SLL;
-        }  
-        else
+        } else
           symbol = SYM_LT;
 
       } else if (character == CHAR_GT) {
         get_character();
+        if(character == CHAR_GT)
+        {
+          get_character();
+          symbol = SYM_SRL;
 
-        if (character == CHAR_EQUAL) {
+        }
+        else if (character == CHAR_EQUAL) {
           get_character();
 
           symbol = SYM_GEQ;
-        } 
-        else  if (character == CHAR_GT) {
-          get_character();
-
-          symbol = SYM_SRL;
-        } 
-        else
+        } else
           symbol = SYM_GT;
 
       } else {
@@ -3166,6 +3166,7 @@ uint64_t is_plus_or_minus() {
   else
     return 0;
 }
+
 uint64_t is_sll_or_srl() {
   if (symbol == SYM_SRL)
     return 1;
@@ -3174,7 +3175,6 @@ uint64_t is_sll_or_srl() {
   else
     return 0;
 }
-
 
 uint64_t is_comparison() {
   if (symbol == SYM_EQUALITY)
@@ -3926,7 +3926,9 @@ uint64_t compile_simple_expression() {
   return ltype;
 }
 
-uint64_t compile_bitWiseShift_expression() {
+
+
+uint64_t compile_bitwiseshift_expression() {
   uint64_t ltype;
   uint64_t operator_symbol;
   uint64_t rtype;
@@ -3998,6 +4000,7 @@ uint64_t compile_bitWiseShift_expression() {
   return ltype;
 }
 
+
 uint64_t compile_expression() {
   uint64_t ltype;
   uint64_t operator_symbol;
@@ -4005,16 +4008,17 @@ uint64_t compile_expression() {
 
   // assert: n = allocated_temporaries
 
-  ltype = compile_simple_expression();
+  ltype = compile_bitwiseshift_expression();
 
   // assert: allocated_temporaries == n + 1
 
-  //optional: ==, !=, <, >, <=, >= ²  if (is_comparison()) {
+  //optional: ==, !=, <, >, <=, >= simple_expression
+  if (is_comparison()) {
     operator_symbol = symbol;
 
     get_symbol();
 
-    rtype = compile_simple_expression();
+    rtype = compile_bitwiseshift_expression();
 
     // assert: allocated_temporaries == n + 2
 
@@ -4068,7 +4072,7 @@ uint64_t compile_expression() {
 
       tfree(1);
     }
-  
+  }
 
   // assert: allocated_temporaries == n + 1
 
@@ -5520,20 +5524,22 @@ void emit_add(uint64_t rd, uint64_t rs1, uint64_t rs2) {
   ic_add = ic_add + 1;
 }
 
-void emit_sll(uint64_t rd, uint64_t rs1, uint64_t rs2) {
-  emit_instruction(encode_r_format(F7_SLL, rs2, rs1, F3_SLL, rd, OP_OP));
-
-  ic_add = ic_add + 1;
-}
-void emit_srl(uint64_t rd, uint64_t rs1, uint64_t rs2) {
-  emit_instruction(encode_r_format(F7_SRL, rs2, rs1, F3_SRL, rd, OP_OP));
-
-  ic_add = ic_add + 1;
-}
 void emit_sub(uint64_t rd, uint64_t rs1, uint64_t rs2) {
   emit_instruction(encode_r_format(F7_SUB, rs2, rs1, F3_SUB, rd, OP_OP));
 
   ic_sub = ic_sub + 1;
+}
+
+void emit_sll(uint64_t rd, uint64_t rs1, uint64_t rs2) {
+  emit_instruction(encode_r_format(F7_SLL, rs2, rs1, F3_SLL, rd, OP_OP));
+
+ 
+}
+
+void emit_srl(uint64_t rd, uint64_t rs1, uint64_t rs2) {
+  emit_instruction(encode_r_format(F7_SRL, rs2, rs1, F3_SRL, rd, OP_OP));
+
+  
 }
 
 void emit_mul(uint64_t rd, uint64_t rs1, uint64_t rs2) {
@@ -6851,6 +6857,7 @@ void do_add() {
 
   ic_add = ic_add + 1;
 }
+
 void do_sll() {
   if (rd != REG_ZR)
     // semantics of add
@@ -6860,6 +6867,17 @@ void do_sll() {
 
   ic_add = ic_add + 1;
 }
+
+void do_srl() {
+  if (rd != REG_ZR)
+    // semantics of add
+    *(registers + rd) = *(registers + rs1) >> *(registers + rs2);
+
+  pc = pc + INSTRUCTIONSIZE;
+
+  ic_add = ic_add + 1;
+}
+
 void constrain_add_sub_mul_divu_remu_sltu(char* operator) {
   char* op1;
   char* op2;
@@ -6891,15 +6909,7 @@ void do_sub() {
 
   ic_sub = ic_sub + 1;
 }
-void do_srl() {
-  if (rd != REG_ZR)
-    // semantics of sub
-    *(registers + rd) = *(registers + rs1) >> *(registers + rs2);
 
-  pc = pc + INSTRUCTIONSIZE;
-
-  ic_sub = ic_sub + 1;
-}
 void do_mul() {
   if (rd != REG_ZR)
     // semantics of mul
@@ -7841,7 +7851,16 @@ void decode_execute() {
     }
   } else if (opcode == OP_OP) { // could be ADD, SUB, MUL, DIVU, REMU, SLTU
     decode_r_format();
-
+    if(funct3==F3_SRL)
+    {
+      do_srl();
+      return;
+    }
+    if(funct3==F3_SLL)
+    {
+      do_sll();
+      return;
+    }
     if (funct3 == F3_ADD) { // = F3_SUB = F3_MUL
       if (funct7 == F7_ADD) {
         if (debug) {
@@ -7864,22 +7883,7 @@ void decode_execute() {
           do_add();
 
         return;
-      } 
-     
-      if (funct7 == F7_SLL) {
-    
-          do_sll();
-
-        return;
-      } 
-      else  if (funct7 == F7_SRL) {
-    
-          do_srl();
-
-        return;
-      } 
-
-      else if (funct7 == F7_SUB) {
+      } else if (funct7 == F7_SUB) {
         if (debug) {
           if (record) {
             record_lui_addi_add_sub_mul_sltu_jal_jalr();
@@ -9735,4 +9739,3 @@ int main(int argc, char** argv) {
 
   return selfie();
 }
-
